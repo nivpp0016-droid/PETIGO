@@ -5,14 +5,17 @@
 #include "wifi_manager.h"
 #include "config.h"
 #include "display_manager.h"
+#include "keypad_manager.h"
 
 #define RELAY_PIN 26
 
 LockController parcelLock(RELAY_PIN);
 WiFiManager wifiManager;
 DisplayManager display;
+KeypadManager keypad;
 
 BoxState currentState = BoxState::LOCKED;
+String enteredOTP = "";
 
 void setup() {
 
@@ -33,27 +36,56 @@ void setup() {
 
 void loop() {
 
-    currentState = BoxState::LOCKED;
-    display.showLocked();
-    delay(3000);
+    char key = keypad.getKey();
 
-    currentState = BoxState::UNLOCKED;
-    display.showUnlocked();
-    delay(3000);
+    if (key != NO_KEY) {
 
-    currentState = BoxState::DOOR_OPEN;
-    display.showMessage("PARCEL BOX", "DOOR OPEN");
-    delay(3000);
+        Serial.print("Key pressed: ");
+        Serial.println(key);
 
-    currentState = BoxState::PARCEL_DETECTED;
-    display.showParcelDetected();
-    delay(3000);
+        if (key >= '0' && key <= '9') {
 
-    currentState = BoxState::DELIVERY_COMPLETE;
-    display.showDeliveryComplete();
-    delay(3000);
+            if (enteredOTP.length() < 6) {
+                enteredOTP += key;
+            }
 
-    currentState = BoxState::LOCKED;
-    display.showLocked();
-    delay(3000);
+            display.showMessage(
+                "ENTER OTP",
+                enteredOTP.c_str()
+            );
+        }
+
+        else if (key == '*') {
+
+            enteredOTP = "";
+
+            display.showEnterOTP();
+        }
+
+        else if (key == '#') {
+
+            if (enteredOTP.length() == 6) {
+
+                Serial.println("OTP entered.");
+
+                // Verification will be added later.
+                display.showMessage(
+                    "OTP",
+                    "VERIFYING"
+                );
+
+            } else {
+
+                display.showMessage(
+                    "OTP",
+                    "6 DIGITS"
+                );
+            }
+
+            delay(1500);
+
+            enteredOTP = "";
+            display.showEnterOTP();
+        }
+    }
 }
