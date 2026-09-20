@@ -5,25 +5,33 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-#define OLED_RESET -1
-
 class DisplayManager {
 public:
     DisplayManager();
 
     void begin();
-    void showBootScreen();
-    void showLocked();
-    void showUnlocked();
-    void showEnterOTP();
+    void showBootScreen(const char* ipStr = "Connecting...");
+    void showIdleScreen(
+        const char* boxCode,
+        bool wifiOk,
+        const char* ipStr,
+        bool doorOpen,
+        float distanceCm,
+        bool parcelDetected
+    );
+    void showOtpEntry(uint8_t length);
+    void showVerifying();
+    void showAccessGranted();
+    void showAccessDenied(const char* reason = "INVALID OTP");
+    void showDoorOpen(float distanceCm, bool parcelDetected);
     void showParcelDetected();
     void showDeliveryComplete();
-    void showMessage(const char* line1, const char* line2);
+    void showAlarm();
+    void showMessage(const char* title, const char* message);
 
 private:
     Adafruit_SSD1306 _display;
+    bool _isInitialized;
 };
 
 #endif

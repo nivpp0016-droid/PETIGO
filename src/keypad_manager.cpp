@@ -1,16 +1,15 @@
 #include "keypad_manager.h"
+#include "config.h"
 
-char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
+static char keys[KEYPAD_ROWS][KEYPAD_COLS] = {
     {'1', '2', '3', 'A'},
     {'4', '5', '6', 'B'},
     {'7', '8', '9', 'C'},
     {'*', '0', '#', 'D'}
 };
 
-// Temporary GPIO assignments.
-// We will finalize these after checking your physical keypad wiring.
-byte rowPins[KEYPAD_ROWS] = {32, 33, 25, 27};
-byte colPins[KEYPAD_COLS] = {14, 16, 17, 18};
+static byte rowPins[KEYPAD_ROWS] = {KEYPAD_ROW_PINS[0], KEYPAD_ROW_PINS[1], KEYPAD_ROW_PINS[2], KEYPAD_ROW_PINS[3]};
+static byte colPins[KEYPAD_COLS] = {KEYPAD_COL_PINS[0], KEYPAD_COL_PINS[1], KEYPAD_COL_PINS[2], KEYPAD_COL_PINS[3]};
 
 KeypadManager::KeypadManager()
     : _keypad(
@@ -24,8 +23,4 @@ KeypadManager::KeypadManager()
 
 char KeypadManager::getKey() {
     return _keypad.getKey();
-}
-
-bool KeypadManager::isKeyPressed() {
-    return _keypad.getKey() != NO_KEY;
 }

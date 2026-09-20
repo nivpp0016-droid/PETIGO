@@ -5,16 +5,20 @@
 
 class LockController {
 public:
-    LockController(uint8_t relayPin);
+    explicit LockController(uint8_t relayPin, bool activeLow = false);
 
     void begin();
-    void unlock();
+    void update();
+    void unlock(unsigned long durationMs = 5000);
     void lock();
-    bool isLocked();
+    bool isLocked() const;
 
 private:
     uint8_t _relayPin;
-    bool _locked;
+    bool _activeLow;
+    bool _isLocked;
+    unsigned long _unlockStartTime;
+    unsigned long _unlockDuration;
 };
 
 #endif
