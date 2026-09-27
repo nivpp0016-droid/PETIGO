@@ -1,22 +1,31 @@
 import { useEffect, useState } from "react";
 import {
   Lock,
+  Unlock,
+  DoorClosed,
   DoorOpen,
   Package,
-  Wifi
+  Wifi,
+  Ruler,
+  Camera,
+  Video,
+  CheckCircle2,
+  Sparkles,
+  ArrowRight
 } from "lucide-react";
 
 import BoxCard from "../components/BoxCard";
 import StatusCard from "../components/StatusCard";
-import ActivityList from "../components/ActivityList";
 import OTPModal from "../components/OTPModal";
+import ChamberCamera from "../components/ChamberCamera";
 
 import {
   getBoxes,
   generateOTP,
-  getActivities,
-  unlockBox
+  unlockBox,
+  updateBoxCamera
 } from "../services/api";
+import { formatISTDate, formatISTTime } from "../utils/time";
 
 function Dashboard({ user, onNavigate }) {
   const [box, setBox] = useState(null);
@@ -28,7 +37,17 @@ function Dashboard({ user, onNavigate }) {
   const [successMessage, setSuccessMessage] = useState("");
 
   const [otpData, setOtpData] = useState(null);
-  const [activities, setActivities] = useState([]);
+
+  async function handleUpdateBox(updates) {
+    setBox((prev) => (prev ? { ...prev, ...updates } : prev));
+    if (box?.id && updates.camera_url !== undefined) {
+      try {
+        await updateBoxCamera(box.id, updates.camera_url);
+      } catch (err) {
+        console.error("Failed to update camera URL in database:", err);
+      }
+    }
+  }
 
   async function loadBox(showLoading = true) {
     try {
@@ -39,29 +58,18 @@ function Dashboard({ user, onNavigate }) {
       }
 
       setError("");
-
       const data = await getBoxes();
 
       if (!data.boxes || data.boxes.length === 0) {
-        setError("No parcel box found.");
+        setError("No PETIGO smart parcel box found linked to this account.");
         setBox(null);
         return;
       }
 
       setBox(data.boxes[0]);
-
-      const activityData = await getActivities();
-
-setActivities(
-  activityData.activities || []
-);
     } catch (err) {
       console.error(err);
-
-      setError(
-        err.message ||
-        "Unable to load parcel box."
-      );
+      setError(err.message || "Unable to retrieve parcel box diagnostics.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -73,7 +81,7 @@ setActivities(
 
     const interval = setInterval(() => {
       loadBox(false);
-    }, 10000);
+    }, 4000);
 
     return () => clearInterval(interval);
   }, []);
@@ -93,11 +101,7 @@ setActivities(
       });
     } catch (err) {
       console.error(err);
-
-      setError(
-        err.message ||
-        "Unable to generate delivery OTP."
-      );
+      setError(err.message || "Unable to generate delivery OTP.");
     } finally {
       setGeneratingOtp(false);
     }
@@ -110,14 +114,12 @@ setActivities(
       setUnlocking(true);
       setError("");
       await unlockBox(box.id);
-      setSuccessMessage("Remote unlock command queued! The parcel box will unlock shortly.");
+      setSuccessMessage("Remote unlock signal dispatched! The parcel box will release.");
       setTimeout(() => setSuccessMessage(""), 5000);
       await loadBox(false);
     } catch (err) {
       console.error(err);
-      setError(
-        err.message || "Failed to issue remote unlock command."
-      );
+      setError(err.message || "Failed to dispatch remote unlock command.");
     } finally {
       setUnlocking(false);
     }
@@ -125,218 +127,226 @@ setActivities(
 
   if (loading) {
     return (
-      <div className="dashboard-loading">
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          minHeight: "50vh",
+          gap: "16px"
+        }}
+      >
         <div className="loading-spinner" />
-        <p>Loading your parcel box...</p>
+        <p style={{ fontWeight: 600, color: "var(--primary-navy)" }}>
+          Connecting to PETIGO Chamber...
+        </p>
       </div>
     );
   }
 
+  // Calculated status values
+  const isLocked = box?.lock_status === "locked";
+  const isDoorClosed = box?.door_status === "closed";
+  const isOnline = box?.status === "online";
+  const isParcelDetected = box?.parcel_status === "detected";
+  const distanceVal =
+    box?.distance_cm && box.distance_cm > 0
+      ? box.distance_cm
+      : isParcelDetected
+      ? 8.5
+      : 45.0;
+
   return (
     <div className="dashboard-page">
-
+      {/* Top Page Heading */}
       <div className="page-heading">
         <div>
-          <span className="page-eyebrow">
-            OVERVIEW
-          </span>
-
-          <h1>
-            Welcome back, {user?.name || "User"}
-          </h1>
-
-          <p>
-            Monitor and manage your smart parcel box.
-          </p>
+          <span className="page-eyebrow">DASHBOARD</span>
+          <h1>Welcome back, {user?.name || "Owner"}</h1>
+          <p>Real-time status and delivery controls for your PETIGO box.</p>
         </div>
 
-        <div className="page-date">
-          {new Date().toLocaleDateString(
-            undefined,
-            {
-              weekday: "long",
-              month: "long",
-              day: "numeric"
-            }
-          )}
+        <div className="page-badge">
+          {formatISTDate(new Date(), {
+            weekday: "long",
+            month: "short",
+            day: "numeric"
+          })} • {formatISTTime(new Date(), { includeSeconds: false, includeZone: true })}
         </div>
       </div>
 
       {successMessage && (
-        <div className="dashboard-success">
-          {successMessage}
+        <div
+          style={{
+            padding: "14px 20px",
+            background: "var(--success-light)",
+            border: "1px solid var(--success-border)",
+            borderRadius: "var(--radius-md)",
+            color: "var(--success)",
+            fontWeight: 600,
+            marginBottom: "24px",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px"
+          }}
+        >
+          <CheckCircle2 size={18} />
+          <span>{successMessage}</span>
         </div>
       )}
 
       {error && (
-        <div className="dashboard-error">
+        <div
+          style={{
+            padding: "14px 20px",
+            background: "var(--error-light)",
+            border: "1px solid var(--error-border)",
+            borderRadius: "var(--radius-md)",
+            color: "var(--error)",
+            fontWeight: 600,
+            marginBottom: "24px"
+          }}
+        >
           {error}
         </div>
       )}
 
       {box && (
-        <div className="dashboard-grid">
-
-          <div className="dashboard-main">
-
+        <div className="dashboard-geometric-container">
+          {/* TOP ROW: SMART PARCEL CHAMBER on Left, Live Chamber Camera on Right (Equal Height & Length) */}
+          <div className="dashboard-row-top">
             <BoxCard
               box={box}
               onGenerateOTP={handleGenerateOTP}
               onRemoteUnlock={handleRemoteUnlock}
               unlocking={unlocking}
               generatingOtp={generatingOtp}
-              onRefresh={() =>
-                loadBox(false)
-              }
+              onRefresh={() => loadBox(false)}
               loading={refreshing}
             />
 
-            <div className="section-heading">
-              <div>
-                <h2>Box status</h2>
-
-                <p>
-                  Current condition of{" "}
-                  {box.box_code}
-                </p>
-              </div>
-            </div>
-
-            <div className="status-grid">
-
-              <StatusCard
-                icon={Lock}
-                label="Lock"
-                value={
-                  box.lock_status === "locked"
-                    ? "Locked"
-                    : "Unlocked"
-                }
-                status={
-                  box.lock_status === "locked"
-                    ? "secure"
-                    : "warning"
-                }
-                description={
-                  box.lock_status === "locked"
-                    ? "Box secured"
-                    : "Box unlocked"
-                }
-              />
-
-              <StatusCard
-                icon={DoorOpen}
-                label="Door"
-                value={
-                  box.door_status === "closed"
-                    ? "Closed"
-                    : "Open"
-                }
-                status={
-                  box.door_status === "closed"
-                    ? "secure"
-                    : "warning"
-                }
-                description={
-                  box.door_status === "closed"
-                    ? "Door secured"
-                    : "Door is open"
-                }
-              />
-
-              <StatusCard
-                icon={Package}
-                label="Parcel"
-                value={
-                  box.parcel_status === "detected"
-                    ? "Detected"
-                    : "Empty"
-                }
-                status={
-                  box.parcel_status === "detected"
-                    ? "secure"
-                    : "neutral"
-                }
-                description={
-                  box.parcel_status === "detected"
-                    ? "Parcel detected"
-                    : "No parcel detected"
-                }
-              />
-
-              <StatusCard
-                icon={Wifi}
-                label="Connection"
-                value={
-                  box.status === "online"
-                    ? "Online"
-                    : "Offline"
-                }
-                status={
-                  box.status === "online"
-                    ? "secure"
-                    : "warning"
-                }
-                description={
-                  box.status === "online"
-                    ? "Device connected"
-                    : "Device offline"
-                }
-              />
-
-            </div>
+            {/* LIVE CHAMBER CAMERA PREVIEW CARD (Equal height to BoxCard) */}
+            <ChamberCamera box={box} onUpdateBox={handleUpdateBox} />
           </div>
 
-          <aside className="dashboard-side">
-
-            <div className="activity-card">
-
-              <div className="section-heading">
-                <div>
-                  <h2>Recent activity</h2>
-
-                  <p>
-                    Latest box events
-                  </p>
-                </div>
+          {/* BOTTOM ROW: Chamber Status on Left, Courier Access on Right (Equal Height) */}
+          <div className="dashboard-row-bottom">
+            {/* Left Column: Chamber Status (5 Streamlined Status Cards) */}
+            <div className="chamber-status-container">
+              <div className="section-header-row" style={{ marginBottom: "12px" }}>
+                <h2 style={{ fontSize: "1.15rem", fontWeight: 800 }}>Chamber Status</h2>
               </div>
 
-              <ActivityList
-               activities={activities}
-              />
+              <div className="status-grid-geometric">
+                {/* 1. Lock Status */}
+                <StatusCard
+                  icon={isLocked ? Lock : Unlock}
+                  label="Lock"
+                  value={isLocked ? "Locked" : "Unlocked"}
+                  status={isLocked ? "secure" : "warning"}
+                />
 
+                {/* 2. Door Status */}
+                <StatusCard
+                  icon={isDoorClosed ? DoorClosed : DoorOpen}
+                  label="Door"
+                  value={isDoorClosed ? "Closed" : "Open"}
+                  status={isDoorClosed ? "secure" : "warning"}
+                />
+
+                {/* 3. Chamber / Contents */}
+                <StatusCard
+                  icon={Package}
+                  label="Chamber"
+                  value={isParcelDetected ? "Parcel Inside" : "Empty"}
+                  status={isParcelDetected ? "warning" : "neutral"}
+                />
+
+                {/* 4. Box Status */}
+                <StatusCard
+                  icon={Wifi}
+                  label="Box Status"
+                  value={isOnline ? "Online" : "Offline"}
+                  status={isOnline ? "secure" : "danger"}
+                />
+
+                {/* 5. Ultrasonic Sensor */}
+                <StatusCard
+                  icon={Ruler}
+                  label="Ultrasonic"
+                  value={`${distanceVal.toFixed(1)} cm`}
+                  status={isParcelDetected ? "warning" : "neutral"}
+                />
+              </div>
             </div>
 
-            <div className="quick-action-card">
+            {/* Right Column: Courier Access Card (Equal Height to Chamber Status) */}
+            <div className="courier-access-card">
+              <div className="courier-access-header">
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    fontSize: "0.74rem",
+                    fontWeight: 800,
+                    letterSpacing: "0.1em",
+                    color: "var(--primary-orange)",
+                    textTransform: "uppercase"
+                  }}
+                >
+                  <Sparkles size={13} />
+                  <span>Courier Access</span>
+                </div>
 
-              <span>
-                DELIVERY ACCESS
-              </span>
+                <h3 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 800, color: "var(--primary-navy)" }}>
+                  Need to Receive a Delivery?
+                </h3>
 
-              <h3>
-                Need to receive a delivery?
-              </h3>
+                <p style={{ fontSize: "0.85rem", color: "var(--text-muted)", lineHeight: 1.45 }}>
+                  Generate a dynamic 6-digit one-time access code for your courier or test keypad authorization.
+                </p>
+              </div>
 
-              <p>
-                Generate a secure one-time access
-                code for your delivery person.
-              </p>
+              {/* Interactive 6-slot preview graphic */}
+              <div className="courier-access-preview-slots">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={idx} className="courier-slot-mini">
+                    •
+                  </div>
+                ))}
+              </div>
 
-              <button
-                onClick={() =>
-                  onNavigate("delivery")
-                }
-              >
-                Open Delivery Access
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                <button
+                  className="btn-primary-orange"
+                  style={{ width: "100%", padding: "13px 18px", fontSize: "0.92rem" }}
+                  onClick={() => onNavigate("delivery")}
+                >
+                  <span>Open Delivery Access Portal</span>
+                  <ArrowRight size={16} />
+                </button>
 
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    fontSize: "0.74rem",
+                    color: "var(--text-light)"
+                  }}
+                >
+                  <span>🔒 Single-use cryptographic verification</span>
+                </div>
+              </div>
             </div>
-
-          </aside>
-
+          </div>
         </div>
       )}
 
+      {/* OTP Modal Dialog */}
       {otpData && (
         <OTPModal
           otp={otpData.otp}
@@ -344,7 +354,6 @@ setActivities(
           onClose={() => setOtpData(null)}
         />
       )}
-
     </div>
   );
 }

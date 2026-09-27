@@ -1,6 +1,8 @@
 const API_URL =
   import.meta.env.VITE_API_URL ||
-  "http://localhost:3000";
+  (typeof window !== "undefined" && window.location.hostname
+    ? `http://${window.location.hostname}:3000`
+    : "http://localhost:3000");
 
 function getToken() {
   return localStorage.getItem("token");
@@ -161,4 +163,29 @@ export function getStoredUser() {
 
 export async function getDeliveries() {
   return request("/api/boxes/deliveries");
+}
+
+export async function deleteDelivery(deliveryId) {
+  return request(`/api/boxes/deliveries/${deliveryId}`, {
+    method: "DELETE"
+  });
+}
+
+export async function clearDeliveries() {
+  return request("/api/boxes/deliveries", {
+    method: "DELETE"
+  });
+}
+
+export async function clearActivities() {
+  return request("/api/boxes/activity", {
+    method: "DELETE"
+  });
+}
+
+export async function updateBoxCamera(boxId, cameraUrl) {
+  return request(`/api/boxes/${boxId}/camera`, {
+    method: "PUT",
+    body: JSON.stringify({ cameraUrl })
+  });
 }

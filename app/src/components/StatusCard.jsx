@@ -2,33 +2,19 @@ function StatusCard({
   icon: Icon,
   label,
   value,
-  status = "neutral",
-  description
+  status = "neutral"
 }) {
   return (
-    <div className={`status-card status-${status}`}>
-      <div className="status-card-top">
-        <div className="status-icon">
-          <Icon size={20} />
+    <div className={`status-card-simple is-${status}`}>
+      <div className="status-card-simple-top">
+        <div className="status-card-simple-icon">
+          <Icon size={22} />
         </div>
-
-        <span className="status-indicator" />
       </div>
 
-      <div className="status-card-content">
-        <span className="status-label">
-          {label}
-        </span>
-
-        <strong className="status-value">
-          {value}
-        </strong>
-
-        {description && (
-          <span className="status-description">
-            {description}
-          </span>
-        )}
+      <div>
+        <span className="status-card-simple-label">{label}</span>
+        <strong className="status-card-simple-value">{value}</strong>
       </div>
     </div>
   );

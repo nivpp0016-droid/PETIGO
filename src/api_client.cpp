@@ -13,14 +13,16 @@ void ApiClient::begin(const char* serverUrl, const char* deviceToken) {
 bool ApiClient::sendStatus(
     const char* doorStatus,
     const char* lockStatus,
-    const char* parcelStatus
+    const char* parcelStatus,
+    float distanceCm,
+    int wifiRssi
 ) {
     if (WiFi.status() != WL_CONNECTED) {
         return false;
     }
 
     HTTPClient http;
-    http.setTimeout(2500);
+    http.setTimeout(2000);
 
     String url = _serverUrl + "/api/device/status";
     if (!http.begin(url)) return false;
@@ -31,14 +33,16 @@ bool ApiClient::sendStatus(
     String body = "{";
     body += "\"doorStatus\":\"" + String(doorStatus) + "\",";
     body += "\"lockStatus\":\"" + String(lockStatus) + "\",";
-    body += "\"parcelStatus\":\"" + String(parcelStatus) + "\"";
+    body += "\"parcelStatus\":\"" + String(parcelStatus) + "\",";
+    body += "\"distanceCm\":" + String(distanceCm, 1) + ",";
+    body += "\"wifiRssi\":" + String(wifiRssi);
     body += "}";
 
     int httpCode = http.POST(body);
     bool ok = (httpCode == 200);
 
     if (ok) {
-        Serial.println("[API] Status sent successfully.");
+        Serial.println("[API] Telemetry sent successfully.");
     } else {
         Serial.printf("[API] Failed to send status, code: %d\n", httpCode);
     }

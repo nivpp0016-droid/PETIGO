@@ -4,14 +4,12 @@ import {
   Copy,
   KeyRound,
   ShieldCheck,
-  X
+  X,
+  Clock,
+  Sparkles
 } from "lucide-react";
 
-function OTPModal({
-  otp,
-  expiresAt,
-  onClose
-}) {
+function OTPModal({ otp, expiresAt, onClose }) {
   const [timeLeft, setTimeLeft] = useState(0);
   const [copied, setCopied] = useState(false);
 
@@ -22,22 +20,12 @@ function OTPModal({
     }
 
     function updateTimer() {
-      const remaining = Math.max(
-        0,
-        new Date(expiresAt).getTime() -
-          Date.now()
-      );
-
+      const remaining = Math.max(0, new Date(expiresAt).getTime() - Date.now());
       setTimeLeft(remaining);
     }
 
     updateTimer();
-
-    const timer = setInterval(
-      updateTimer,
-      1000
-    );
-
+    const timer = setInterval(updateTimer, 1000);
     return () => clearInterval(timer);
   }, [expiresAt]);
 
@@ -56,134 +44,95 @@ function OTPModal({
       }
 
       setCopied(true);
-
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
+      setTimeout(() => setCopied(false), 2000);
     } catch (error) {
-      console.error(
-        "Unable to copy OTP:",
-        error
-      );
+      console.error("Unable to copy OTP:", error);
     }
   }
 
-  if (!otp) {
-    return null;
-  }
+  if (!otp) return null;
 
-  const totalSeconds = Math.floor(
-    timeLeft / 1000
-  );
-
-  const minutes = Math.floor(
-    totalSeconds / 60
-  );
-
+  const totalSeconds = Math.floor(timeLeft / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
-
   const expired = timeLeft <= 0;
 
   return (
-    <div
-      className="otp-overlay"
-      onClick={onClose}
-    >
-      <div
-        className="otp-modal"
-        onClick={(event) =>
-          event.stopPropagation()
-        }
-      >
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-dialog" onClick={(e) => e.stopPropagation()}>
         <button
-          className="otp-close-button"
+          className="modal-close-btn"
           onClick={onClose}
-          aria-label="Close"
+          aria-label="Close dialog"
         >
           <X size={20} />
         </button>
 
-        <div className="otp-icon">
-          <KeyRound size={25} />
+        <div className="modal-brand-badge">
+          <Sparkles size={14} />
+          <span>ONE-TIME COURIER CODE</span>
         </div>
 
-        <div className="otp-heading">
-          <span className="otp-eyebrow">
-            DELIVERY ACCESS
-          </span>
+        <h2>Chamber Access Code</h2>
+        <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", marginTop: "4px" }}>
+          Share this 6-digit access code with the courier to authorize doorstep chamber entry.
+        </p>
 
-          <h2>One-Time Password</h2>
+        {/* Large Code Display */}
+        <div className="otp-box-large">
+          <div className="otp-number-display">
+            {expired ? "EXPIRED" : String(otp || "")}
+          </div>
 
-          <p>
-            Give this code to your delivery
-            person to authorize access.
-          </p>
-        </div>
-
-        <div
-          className={`otp-code-box ${
-            expired ? "otp-expired" : ""
-          }`}
-        >
-          {expired ? (
-            <span>EXPIRED</span>
-          ) : (
-            String(otp || "")
-              .split("")
-              .map((digit, index) => (
-                <span
-                  key={`${digit}-${index}`}
-                >
-                  {digit}
-                </span>
-              ))
-          )}
+          <div className="otp-countdown">
+            <Clock size={14} />
+            <span>
+              {expired
+                ? "This code has expired"
+                : `Valid for ${minutes}:${String(seconds).padStart(2, "0")}`}
+            </span>
+          </div>
         </div>
 
         {!expired && (
-          <>
+          <div style={{ display: "flex", gap: "12px", marginBottom: "20px" }}>
             <button
-              className="copy-otp-button"
+              className="btn-primary-orange"
+              style={{ flex: 1 }}
               onClick={copyOTP}
             >
               {copied ? (
                 <>
-                  <Check size={17} />
-                  Copied
+                  <Check size={18} />
+                  <span>Copied to Clipboard!</span>
                 </>
               ) : (
                 <>
-                  <Copy size={17} />
-                  Copy OTP
+                  <Copy size={18} />
+                  <span>Copy 6-Digit Code</span>
                 </>
               )}
             </button>
-
-            <div className="otp-timer">
-              <span>Expires in</span>
-
-              <strong>
-                {minutes}:
-                {String(seconds).padStart(
-                  2,
-                  "0"
-                )}
-              </strong>
-            </div>
-          </>
+          </div>
         )}
 
-        <div className="otp-security-note">
-          <ShieldCheck size={18} />
-
-          <div>
-            <strong>Security protected</strong>
-
-            <span>
-              This code can only be used once
-              and automatically expires.
-            </span>
-          </div>
+        <div
+          style={{
+            padding: "12px 14px",
+            background: "var(--surface-subtle)",
+            borderRadius: "var(--radius-md)",
+            border: "1px solid var(--border-light)",
+            display: "flex",
+            alignItems: "center",
+            gap: "10px",
+            fontSize: "0.82rem",
+            color: "var(--text-muted)"
+          }}
+        >
+          <ShieldCheck size={18} style={{ color: "var(--primary-orange)", flexShrink: 0 }} />
+          <span>
+            Single-use cryptographic validation. The code is instantly revoked upon door unlock.
+          </span>
         </div>
       </div>
     </div>

@@ -12,7 +12,9 @@ public:
     bool sendStatus(
         const char* doorStatus,
         const char* lockStatus,
-        const char* parcelStatus
+        const char* parcelStatus,
+        float distanceCm = -1.0f,
+        int wifiRssi = 0
     );
 
     bool verifyOtp(

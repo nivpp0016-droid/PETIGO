@@ -45,7 +45,7 @@ app.get(
 
 // Start server
 if (require.main === module) {
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log("=================================");
     console.log("Universal Smart Parcel Box");
     console.log("Backend server started");

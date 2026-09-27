@@ -1,6 +1,6 @@
 import "./App.css";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "./components/Navbar";
 import Sidebar from "./components/Sidebar";
 import Login from "./pages/Login";
@@ -23,8 +23,49 @@ function App() {
   const [activePage, setActivePage] =
     useState("dashboard");
 
+  const [isMobile, setIsMobile] = useState(() =>
+    typeof window !== "undefined" ? window.innerWidth <= 1024 : false
+  );
+
   const [sidebarOpen, setSidebarOpen] =
     useState(false);
+
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem("petigo_sidebar_collapsed") === "true";
+  });
+
+  useEffect(() => {
+    function handleResize() {
+      const mobile = window.innerWidth <= 1024;
+      setIsMobile(mobile);
+      if (mobile) {
+        setSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const isSidebarOpen = isMobile ? sidebarOpen : !sidebarCollapsed;
+
+  function handleOpenSidebar() {
+    if (isMobile) {
+      setSidebarOpen(true);
+    } else {
+      setSidebarCollapsed(false);
+      localStorage.setItem("petigo_sidebar_collapsed", "false");
+    }
+  }
+
+  function handleCloseSidebar() {
+    if (isMobile) {
+      setSidebarOpen(false);
+    } else {
+      setSidebarCollapsed(true);
+      localStorage.setItem("petigo_sidebar_collapsed", "true");
+    }
+  }
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -126,22 +167,29 @@ function App() {
     }
   }
 
+  const appShellClasses = [
+    "app-shell",
+    sidebarCollapsed ? "sidebar-collapsed" : "",
+    (isMobile && sidebarOpen) ? "mobile-sidebar-open" : ""
+  ].filter(Boolean).join(" ");
+
   return (
-    <div className="app-shell">
+    <div className={appShellClasses}>
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
         onLogout={handleLogout}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
+        isOpen={isSidebarOpen}
+        onClose={handleCloseSidebar}
+        isMobile={isMobile}
       />
 
       <div className="main-content">
         <Navbar
           user={user}
-          onMenuClick={() =>
-            setSidebarOpen(true)
-          }
+          onNavigate={setActivePage}
+          isSidebarOpen={isSidebarOpen}
+          onOpenSidebar={handleOpenSidebar}
         />
 
         <main className="page-content">

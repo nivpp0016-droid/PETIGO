@@ -11,7 +11,9 @@ router.post("/status", authenticateDevice, (req, res) => {
     const {
       doorStatus,
       lockStatus,
-      parcelStatus
+      parcelStatus,
+      distanceCm,
+      wifiRssi
     } = req.body;
 
     const allowedDoorStatus = ["open", "closed"];
@@ -60,13 +62,13 @@ router.post("/status", authenticateDevice, (req, res) => {
       if (activeDelivery) {
         db.prepare("UPDATE deliveries SET status = 'COMPLETED' WHERE id = ?").run(activeDelivery.id);
       } else {
-        db.prepare("INSERT INTO deliveries (box_id, status) VALUES (?, 'COMPLETED')").run(req.device.id);
+        db.prepare("INSERT INTO deliveries (box_id, status, created_at) VALUES (?, 'COMPLETED', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))").run(req.device.id);
       }
 
       // Record security log
       db.prepare(`
-        INSERT INTO security_logs (box_id, event, details)
-        VALUES (?, 'PARCEL_DELIVERED', 'Parcel deposited inside box and door secured')
+        INSERT INTO security_logs (box_id, event, details, created_at)
+        VALUES (?, 'PARCEL_DELIVERED', 'Parcel deposited inside box and door secured', strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
       `).run(req.device.id);
     }
 
@@ -77,12 +79,16 @@ router.post("/status", authenticateDevice, (req, res) => {
         door_status = ?,
         lock_status = ?,
         parcel_status = ?,
-        updated_at = CURRENT_TIMESTAMP
+        distance_cm = COALESCE(?, distance_cm),
+        wifi_rssi = COALESCE(?, wifi_rssi),
+        updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       WHERE id = ?
     `).run(
       doorStatus,
       lockStatus,
       parcelStatus,
+      distanceCm !== undefined ? distanceCm : null,
+      wifiRssi !== undefined ? wifiRssi : null,
       req.device.id
     );
 
@@ -105,7 +111,7 @@ router.get("/heartbeat", authenticateDevice, (req, res) => {
   try {
     db.prepare(`
       UPDATE boxes
-      SET status = 'online', updated_at = CURRENT_TIMESTAMP
+      SET status = 'online', updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       WHERE id = ?
     `).run(req.device.id);
 
@@ -197,7 +203,7 @@ router.post("/commands/:commandId/ack", authenticateDevice, (req, res) => {
       UPDATE device_commands
       SET
         status = 'executed',
-        executed_at = CURRENT_TIMESTAMP
+        executed_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
       WHERE id = ?
     `).run(commandId);
 

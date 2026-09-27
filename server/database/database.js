@@ -77,6 +77,40 @@ try {
     db.exec("ALTER TABLE boxes ADD COLUMN updated_at TEXT");
     db.exec("UPDATE boxes SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL");
   }
+
+  const hasDistance = tableInfo.some((col) => col.name === "distance_cm");
+  if (!hasDistance) {
+    db.exec("ALTER TABLE boxes ADD COLUMN distance_cm REAL DEFAULT -1");
+  }
+
+  const hasRssi = tableInfo.some((col) => col.name === "wifi_rssi");
+  if (!hasRssi) {
+    db.exec("ALTER TABLE boxes ADD COLUMN wifi_rssi INTEGER DEFAULT 0");
+  }
+
+  const hasCameraUrl = tableInfo.some((col) => col.name === "camera_url");
+  if (!hasCameraUrl) {
+    db.exec("ALTER TABLE boxes ADD COLUMN camera_url TEXT");
+  }
+
+  // Normalize existing timestamps to standard ISO strings with UTC 'Z' indicator
+  db.exec(`
+    UPDATE boxes
+    SET updated_at = replace(updated_at, ' ', 'T') || 'Z'
+    WHERE updated_at IS NOT NULL AND updated_at NOT LIKE '%Z';
+
+    UPDATE boxes
+    SET created_at = replace(created_at, ' ', 'T') || 'Z'
+    WHERE created_at IS NOT NULL AND created_at NOT LIKE '%Z';
+
+    UPDATE deliveries
+    SET created_at = replace(created_at, ' ', 'T') || 'Z'
+    WHERE created_at IS NOT NULL AND created_at NOT LIKE '%Z';
+
+    UPDATE security_logs
+    SET created_at = replace(created_at, ' ', 'T') || 'Z'
+    WHERE created_at IS NOT NULL AND created_at NOT LIKE '%Z';
+  `);
 } catch (err) {
   console.error("Migration error:", err.message);
 }

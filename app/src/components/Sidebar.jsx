@@ -1,10 +1,11 @@
 import {
   LayoutDashboard,
   Package,
+  History as HistoryIcon,
   ShieldCheck,
-  Settings,
+  Settings as SettingsIcon,
   LogOut,
-  X
+  PanelLeftClose
 } from "lucide-react";
 
 function Sidebar({
@@ -12,7 +13,8 @@ function Sidebar({
   setActivePage,
   onLogout,
   isOpen,
-  onClose
+  onClose,
+  isMobile
 }) {
   const navigation = [
     {
@@ -28,145 +30,101 @@ function Sidebar({
     {
       id: "history",
       label: "Delivery History",
-      icon: Package
+      icon: HistoryIcon
     },
     {
       id: "security",
-      label: "Security",
+      label: "Security & Logs",
       icon: ShieldCheck
     },
     {
       id: "settings",
       label: "Settings",
-      icon: Settings
+      icon: SettingsIcon
     }
   ];
 
   function handleNavigation(page) {
     setActivePage(page);
-
-    // Close mobile sidebar after navigation
-    if (onClose) {
+    if (isMobile && onClose) {
       onClose();
     }
   }
 
   return (
     <>
-      {/* Mobile overlay */}
-
-      {isOpen && (
+      {/* Mobile Backdrop Overlay - rendered only when on mobile drawer */}
+      {isMobile && isOpen && (
         <div
           className="sidebar-overlay"
           onClick={onClose}
+          aria-hidden="true"
         />
       )}
 
       <aside
         className={`sidebar ${
-          isOpen
-            ? "sidebar-open"
-            : ""
+          isOpen ? "sidebar-open" : ""
         }`}
       >
-
-        {/* Logo */}
-
+        {/* Brand Header with Shaped White Logo Container */}
         <div className="sidebar-header">
-
-          <div className="brand-mark">
-            <Package size={19} />
-          </div>
-
-          <div className="brand-text">
-            <strong>
-              Smart Parcel
-            </strong>
-
-            <span>
-              BOX SYSTEM
-            </span>
-          </div>
-
-          <button
-            className="sidebar-close"
-            onClick={onClose}
-            aria-label="Close menu"
-          >
-            <X size={18} />
-          </button>
-
-        </div>
-
-        {/* Navigation */}
-
-        <nav className="sidebar-nav">
-
-          <span className="sidebar-section-label">
-            MENU
-          </span>
-
-          {navigation.map(
-            ({
-              id,
-              label,
-              icon: Icon
-            }) => (
-              <button
-                key={id}
-                className={`sidebar-link ${
-                  activePage === id
-                    ? "sidebar-link-active"
-                    : ""
-                }`}
-                onClick={() =>
-                  handleNavigation(id)
-                }
-              >
-                <Icon size={17} />
-
-                <span>
-                  {label}
-                </span>
-              </button>
-            )
-          )}
-
-        </nav>
-
-        {/* Bottom */}
-
-        <div className="sidebar-bottom">
-
-          <div className="sidebar-status">
-
-            <span className="sidebar-status-dot" />
-
-            <div>
-              <strong>
-                System online
-              </strong>
-
-              <span>
-                BOX001 connected
-              </span>
+          <div className="sidebar-brand-group">
+            <div className="brand-badge-shape" title="PETIGO Brand Logo">
+              <img
+                src="/petigo-logo.png"
+                alt="PETIGO"
+              />
             </div>
 
+            <div className="sidebar-brand-text">
+              <strong>
+                PETI<span>GO</span>
+              </strong>
+              <small>Smart Doorstep Box</small>
+            </div>
           </div>
 
+          {/* Single Collapse Button with PanelLeftClose icon */}
+          <button
+            className="sidebar-collapse-btn"
+            onClick={onClose}
+            aria-label="Collapse sidebar"
+            title="Collapse sidebar"
+          >
+            <PanelLeftClose size={20} />
+          </button>
+        </div>
+
+        {/* Navigation Links */}
+        <nav className="sidebar-nav">
+          <span className="sidebar-section-label">Main Menu</span>
+
+          {navigation.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              className={`sidebar-link ${
+                activePage === id ? "sidebar-link-active" : ""
+              }`}
+              onClick={() => handleNavigation(id)}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Bottom Logout */}
+        <div className="sidebar-bottom">
           <button
             className="sidebar-logout"
             onClick={onLogout}
+            title="Sign out of PETIGO"
           >
             <LogOut size={16} />
-
-            <span>
-              Sign out
-            </span>
+            <span>Sign Out</span>
           </button>
-
         </div>
-
       </aside>
     </>
   );

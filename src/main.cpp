@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 
 #include "config.h"
 #include "wifi_manager.h"
@@ -30,6 +31,7 @@ unsigned long lastStatusReportTime = 0;
 unsigned long lastDisplayRefreshTime = 0;
 unsigned long deliveryCompleteTime = 0;
 unsigned long unlockTime = 0;
+unsigned long alarmStartTime = 0;
 
 void setup() {
     Serial.begin(115200);
@@ -67,9 +69,14 @@ void setup() {
     display.showBootScreen(wifiManager.isConnected() ? wifiManager.getLocalIP().c_str() : "Connecting...");
 
     Serial.println("[BOOT] Setup complete. Entering operational loop.");
+
+    // 7. Hardware Watchdog (15s fail-safe reset)
+    esp_task_wdt_init(15, true);
+    esp_task_wdt_add(NULL);
 }
 
 void loop() {
+    esp_task_wdt_reset(); // Feed hardware watchdog
     unsigned long now = millis();
 
     // ----------------------------------------------------
@@ -94,7 +101,18 @@ void loop() {
         Serial.printf("[KEYPAD] Key pressed: '%c'\n", key);
         buzzer.beep(30);
 
-        if (currentState == ParcelState::IDLE_LOCKED) {
+        if (currentState == ParcelState::ALARM) {
+            Serial.println("[SECURITY] Alarm silenced by keypad press.");
+            enteredOTP = "";
+            if (key == '#') {
+                parcelController.startOtpEntry();
+                lastOtpInputTime = now;
+                display.showOtpEntry(0);
+            } else {
+                parcelController.resetToIdle();
+                display.showIdleScreen(BOX_CODE, wifiManager.isConnected(), wifiManager.getLocalIP().c_str(), isDoorOpen, currentDist, parcelDetected);
+            }
+        } else if (currentState == ParcelState::IDLE_LOCKED) {
             if (key == '#') {
                 parcelController.startOtpEntry();
                 enteredOTP = "";
@@ -176,9 +194,10 @@ void loop() {
                 // Tamper alert: door opened while locked!
                 Serial.println("[SECURITY] Tamper detected! Door opened while locked.");
                 parcelController.doorOpened(); // Triggers ALARM
+                alarmStartTime = now;
                 buzzer.alarm();
                 display.showAlarm();
-                apiClient.sendStatus("open", "locked", parcelDetected ? "detected" : "empty");
+                apiClient.sendStatus("open", "locked", parcelDetected ? "detected" : "empty", currentDist, wifiManager.getRSSI());
             }
         } else {
             // Door closed
@@ -190,9 +209,11 @@ void loop() {
                 deliveryCompleteTime = now;
 
                 // Notify backend
-                apiClient.sendStatus("closed", "locked", parcelDetected ? "detected" : "empty");
+                apiClient.sendStatus("closed", "locked", parcelDetected ? "detected" : "empty", currentDist, wifiManager.getRSSI());
             } else if (currentState == ParcelState::ALARM) {
+                Serial.println("[SECURITY] Door closed while in ALARM. Resetting to IDLE.");
                 parcelController.doorClosed();
+                display.showIdleScreen(BOX_CODE, wifiManager.isConnected(), wifiManager.getLocalIP().c_str(), false, currentDist, parcelDetected);
             }
         }
     }
@@ -229,6 +250,15 @@ void loop() {
         }
     }
 
+    // Auto-silence ALARM alert after 5 seconds so display and system never stay stuck
+    if (currentState == ParcelState::ALARM) {
+        if (now - alarmStartTime > 5000) {
+            Serial.println("[SECURITY] Alarm alert timed out (5s). Returning to normal status display.");
+            parcelController.resetToIdle();
+            display.showIdleScreen(BOX_CODE, wifiManager.isConnected(), wifiManager.getLocalIP().c_str(), isDoorOpen, currentDist, parcelDetected);
+        }
+    }
+
     // ----------------------------------------------------
     // 6. Cloud Communication: Command Polling & Telemetry
     // ----------------------------------------------------
@@ -257,7 +287,9 @@ void loop() {
         apiClient.sendStatus(
             isDoorOpen ? "open" : "closed",
             parcelLock.isLocked() ? "locked" : "unlocked",
-            parcelDetected ? "detected" : "empty"
+            parcelDetected ? "detected" : "empty",
+            currentDist,
+            wifiManager.getRSSI()
         );
     }
 

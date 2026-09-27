@@ -6,6 +6,7 @@ import {
   Package,
   Clock
 } from "lucide-react";
+import { formatISTDateTime } from "../utils/time";
 
 const icons = {
   delivery: Package,
@@ -63,14 +64,7 @@ function ActivityList({ activities = [] }) {
 
             <time>
               {activity.created_at
-                ? new Date(
-                    activity.created_at
-                  ).toLocaleString([], {
-                    month: "short",
-                    day: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit"
-                  })
+                ? formatISTDateTime(activity.created_at)
                 : "Just now"}
             </time>
           </div>

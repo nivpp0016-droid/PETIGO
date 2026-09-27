@@ -14,7 +14,13 @@ void WiFiManager::begin(const char* ssid, const char* password) {
     Serial.println(_ssid);
 
     WiFi.mode(WIFI_STA);
-    WiFi.begin(_ssid, _password);
+    WiFi.setAutoReconnect(true);
+    WiFi.persistent(true);
+    if (_password && strlen(_password) > 0) {
+        WiFi.begin(_ssid, _password);
+    } else {
+        WiFi.begin(_ssid);
+    }
 
     // Initial non-blocking check
     _lastReconnectAttempt = millis();

@@ -1,38 +1,30 @@
-import {
-  useEffect,
-  useState
-} from "react";
-
+import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   CheckCircle2,
   KeyRound,
   Package,
   ShieldCheck,
-  XCircle
+  XCircle,
+  Lock,
+  Unlock,
+  Sparkles,
+  Delete
 } from "lucide-react";
 
-import {
-  getBoxes,
-  verifyOTP
-} from "../services/api";
+import { getBoxes, verifyOTP } from "../services/api";
 
 function Delivery({ onBack }) {
   const [box, setBox] = useState(null);
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
-  const [accessGranted, setAccessGranted] =
-    useState(false);
+  const [accessGranted, setAccessGranted] = useState(false);
   const [error, setError] = useState("");
 
   async function loadBox() {
     try {
       const data = await getBoxes();
-
-      if (
-        data.boxes &&
-        data.boxes.length > 0
-      ) {
+      if (data.boxes && data.boxes.length > 0) {
         setBox(data.boxes[0]);
       }
     } catch (err) {
@@ -40,36 +32,29 @@ function Delivery({ onBack }) {
     }
   }
 
- useEffect(() => {
-  loadBox();
-}, []);
+  useEffect(() => {
+    loadBox();
+  }, []);
 
   function handleDigit(digit) {
     if (otp.length >= 6) return;
-
     setError("");
     setOtp((current) => current + digit);
   }
 
   function handleDelete() {
-    setOtp((current) =>
-      current.slice(0, -1)
-    );
+    setOtp((current) => current.slice(0, -1));
     setError("");
   }
 
   async function handleVerify() {
     if (otp.length !== 6) {
-      setError(
-        "Enter the complete 6-digit OTP."
-      );
+      setError("Please enter the complete 6-digit code.");
       return;
     }
 
     if (!box) {
-      setError(
-        "Unable to identify the parcel box."
-      );
+      setError("Unable to identify the parcel box.");
       return;
     }
 
@@ -77,21 +62,14 @@ function Delivery({ onBack }) {
       setLoading(true);
       setError("");
 
-      const result = await verifyOTP(
-        box.id,
-        otp
-      );
+      const result = await verifyOTP(box.id, otp);
 
       if (result.accessGranted) {
         setAccessGranted(true);
       }
     } catch (err) {
       console.error(err);
-
-      setError(
-        err.message ||
-        "Invalid or expired OTP."
-      );
+      setError(err.message || "Invalid or expired access code.");
     } finally {
       setLoading(false);
     }
@@ -105,262 +83,238 @@ function Delivery({ onBack }) {
 
   if (accessGranted) {
     return (
-      <div className="delivery-page">
-
+      <div className="delivery-container" style={{ animation: "fadeIn 250ms ease-out" }}>
         <button
-          className="back-button"
+          className="btn-secondary-white"
+          style={{
+            background: "var(--surface)",
+            color: "var(--primary-navy)",
+            border: "1px solid var(--border)",
+            marginBottom: "20px"
+          }}
           onClick={onBack}
         >
-          <ArrowLeft size={18} />
-          Back
+          <ArrowLeft size={16} />
+          <span>Back to Dashboard</span>
         </button>
 
-        <div className="delivery-success">
-
-          <div className="success-icon">
-            <CheckCircle2 size={42} />
+        <div className="delivery-card">
+          <div className="delivery-success-icon">
+            <CheckCircle2 size={36} />
           </div>
 
-          <span className="delivery-eyebrow">
-            ACCESS VERIFIED
-          </span>
+          <div className="courier-badge">
+            <Sparkles size={14} />
+            <span>AUTHORIZATION CONFIRMED</span>
+          </div>
 
-          <h1>
-            Access granted
-          </h1>
-
+          <h2>Chamber Unlocked!</h2>
           <p>
-            The delivery OTP has been verified
-            successfully.
+            The solenoid lock has been triggered. Please pull open the door, place the parcel
+            inside, and firmly close the door.
           </p>
 
-          <div className="unlock-card">
-
-            <div className="unlock-card-icon">
-              <KeyRound size={22} />
+          <div
+            style={{
+              background: "var(--surface-subtle)",
+              borderRadius: "var(--radius-lg)",
+              padding: "20px",
+              border: "1px solid var(--border-light)",
+              display: "flex",
+              alignItems: "center",
+              gap: "16px",
+              marginBottom: "24px",
+              textAlign: "left"
+            }}
+          >
+            <div
+              style={{
+                width: "48px",
+                height: "48px",
+                borderRadius: "var(--radius-md)",
+                background: "var(--orange-subtle)",
+                color: "var(--primary-orange)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0
+              }}
+            >
+              <Unlock size={24} />
             </div>
-
             <div>
-              <strong>
-                Unlock command created
+              <strong style={{ color: "var(--primary-navy)", fontSize: "0.95rem", display: "block" }}>
+                Auto-Relock Active
               </strong>
-
-              <span>
-                The smart parcel box is ready
-                for delivery access.
+              <span style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>
+                The box will automatically secure itself once the door is shut.
               </span>
             </div>
-
           </div>
 
-          <div className="delivery-security">
-            <ShieldCheck size={18} />
-
-            <span>
-              This OTP has been marked as used
-              and cannot be reused.
-            </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              fontSize: "0.82rem",
+              color: "var(--text-muted)",
+              marginBottom: "24px"
+            }}
+          >
+            <ShieldCheck size={16} style={{ color: "var(--success)" }} />
+            <span>Single-use code burned and invalidated.</span>
           </div>
 
           <button
-            className="secondary-delivery-button"
+            className="btn-primary-orange"
+            style={{ width: "100%" }}
             onClick={handleReset}
           >
-            Verify another OTP
+            Verify Another Code
           </button>
-
         </div>
-
       </div>
     );
   }
 
   return (
-    <div className="delivery-page">
-
+    <div className="delivery-container" style={{ animation: "fadeIn 250ms ease-out" }}>
       <button
-        className="back-button"
+        className="btn-secondary-white"
+        style={{
+          background: "var(--surface)",
+          color: "var(--primary-navy)",
+          border: "1px solid var(--border)",
+          marginBottom: "20px"
+        }}
         onClick={onBack}
       >
-        <ArrowLeft size={18} />
-        Back to dashboard
+        <ArrowLeft size={16} />
+        <span>Back to Dashboard</span>
       </button>
 
-      <div className="delivery-layout">
+      <div className="delivery-card">
+        <div className="courier-badge">
+          <Package size={14} />
+          <span>COURIER ACCESS TERMINAL</span>
+        </div>
 
-        <section className="delivery-info">
+        <h2>Enter Delivery Access Code</h2>
+        <p>Type the 6-digit one-time code provided by the parcel recipient.</p>
 
-          <div className="delivery-icon">
-            <Package size={27} />
-          </div>
+        {/* 6 Digit Display Slots */}
+        <div className="otp-display-slots">
+          {Array.from({ length: 6 }).map((_, index) => {
+            const hasDigit = Boolean(otp[index]);
+            const isActive = index === otp.length;
 
-          <span className="delivery-eyebrow">
-            DELIVERY ACCESS
-          </span>
-
-          <h1>
-            Secure access to your parcel box.
-          </h1>
-
-          <p>
-            Enter the one-time password provided
-            by the parcel owner to authorize
-            delivery access.
-          </p>
-
-          <div className="delivery-box-info">
-
-            <div className="box-info-icon">
-              <Package size={18} />
-            </div>
-
-            <div>
-              <span>PARCEL BOX</span>
-
-              <strong>
-                {box?.box_code || "Loading..."}
-              </strong>
-            </div>
-
-          </div>
-
-          <div className="delivery-protection">
-
-            <ShieldCheck size={19} />
-
-            <div>
-              <strong>
-                Protected access
-              </strong>
-
-              <span>
-                OTPs are single-use and
-                automatically expire.
-              </span>
-            </div>
-
-          </div>
-
-        </section>
-
-        <section className="otp-entry-card">
-
-          <div className="otp-entry-heading">
-
-            <div className="entry-icon">
-              <KeyRound size={21} />
-            </div>
-
-            <div>
-              <span>
-                VERIFICATION
-              </span>
-
-              <h2>
-                Enter access code
-              </h2>
-            </div>
-
-          </div>
-
-          <div className="otp-digits">
-
-            {Array.from({
-              length: 6
-            }).map((_, index) => (
+            return (
               <div
                 key={index}
-                className={`otp-digit ${
-                  otp[index]
-                    ? "otp-digit-filled"
-                    : ""
-                }`}
+                className={`otp-slot ${hasDigit ? "filled" : ""} ${isActive ? "active" : ""}`}
               >
-                {otp[index]
-                  ? "•"
-                  : ""}
+                {hasDigit ? otp[index] : ""}
               </div>
-            ))}
+            );
+          })}
+        </div>
 
+        {error && (
+          <div
+            style={{
+              padding: "12px 16px",
+              background: "var(--error-light)",
+              border: "1px solid var(--error-border)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--error)",
+              fontSize: "0.88rem",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              marginBottom: "20px"
+            }}
+          >
+            <XCircle size={18} />
+            <span>{error}</span>
           </div>
+        )}
 
-          {error && (
-            <div className="delivery-error">
-              <XCircle size={17} />
-              <span>{error}</span>
-            </div>
-          )}
-
-          <div className="keypad">
-
-            {[
-              "1",
-              "2",
-              "3",
-              "4",
-              "5",
-              "6",
-              "7",
-              "8",
-              "9"
-            ].map((digit) => (
-              <button
-                key={digit}
-                onClick={() =>
-                  handleDigit(digit)
-                }
-              >
-                {digit}
-              </button>
-            ))}
-
+        {/* Virtual Tactile 3x4 Keypad */}
+        <div className="virtual-keypad">
+          {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((digit) => (
             <button
-              className="keypad-clear"
-              onClick={() =>
-                setOtp("")
-              }
+              key={digit}
+              type="button"
+              className="keypad-btn"
+              onClick={() => handleDigit(digit)}
             >
-              Clear
+              {digit}
             </button>
-
-            <button
-              onClick={() =>
-                handleDigit("0")
-              }
-            >
-              0
-            </button>
-
-            <button
-              className="keypad-delete"
-              onClick={handleDelete}
-            >
-              Delete
-            </button>
-
-          </div>
+          ))}
 
           <button
-            className="verify-access-button"
-            onClick={handleVerify}
-            disabled={
-              loading ||
-              otp.length !== 6
-            }
+            type="button"
+            className="keypad-btn action-btn"
+            onClick={() => setOtp("")}
+            title="Clear code"
           >
-            {loading
-              ? "Verifying..."
-              : "Verify Access"}
+            CLR
           </button>
 
-          <p className="otp-entry-footer">
-            🔒 Secure one-time verification
-          </p>
+          <button
+            type="button"
+            className="keypad-btn"
+            onClick={() => handleDigit("0")}
+          >
+            0
+          </button>
 
-        </section>
+          <button
+            type="button"
+            className="keypad-btn action-btn"
+            onClick={handleDelete}
+            title="Delete last digit"
+          >
+            <Delete size={20} />
+          </button>
+        </div>
 
+        {/* Verification Action */}
+        <button
+          className="btn-primary-orange"
+          style={{ width: "100%", padding: "16px", fontSize: "1.05rem" }}
+          onClick={handleVerify}
+          disabled={loading || otp.length !== 6}
+        >
+          {loading ? (
+            <span>Validating Code...</span>
+          ) : (
+            <>
+              <KeyRound size={20} />
+              <span>Verify & Unlock Chamber</span>
+            </>
+          )}
+        </button>
+
+        <div
+          style={{
+            marginTop: "20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
+            fontSize: "0.78rem",
+            color: "var(--text-muted)"
+          }}
+        >
+          <ShieldCheck size={15} style={{ color: "var(--primary-orange)" }} />
+          <span>Encrypted with PETIGO hardware token authentication</span>
+        </div>
       </div>
-
     </div>
   );
 }

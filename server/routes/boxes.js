@@ -6,6 +6,18 @@ const authenticateToken = require("../middleware/auth");
 
 const router = express.Router();
 
+function toUTCISO(ts) {
+  if (!ts) return null;
+  const str = String(ts).trim();
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(str)) {
+    return str.replace(" ", "T") + "Z";
+  }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(str)) {
+    return str + "Z";
+  }
+  return str;
+}
+
 // Create a parcel box
 router.post("/", authenticateToken, (req, res) => {
   try {
@@ -61,7 +73,7 @@ router.post("/", authenticateToken, (req, res) => {
 // Get owner's parcel boxes
 router.get("/", authenticateToken, (req, res) => {
   try {
-    const boxes = db
+    const rows = db
       .prepare(`
         SELECT
           id,
@@ -70,12 +82,29 @@ router.get("/", authenticateToken, (req, res) => {
           door_status,
           lock_status,
           parcel_status,
+          distance_cm,
+          wifi_rssi,
+          camera_url,
           created_at,
           updated_at
         FROM boxes
         WHERE owner_id = ?
       `)
       .all(req.user.userId);
+
+    const now = Date.now();
+    const boxes = rows.map((b) => {
+      const isoUpdatedAt = toUTCISO(b.updated_at);
+      const isoCreatedAt = toUTCISO(b.created_at);
+      const updatedAtMs = isoUpdatedAt ? new Date(isoUpdatedAt).getTime() : 0;
+      const isOnline = (now - updatedAtMs) < 25000;
+      return {
+        ...b,
+        created_at: isoCreatedAt,
+        updated_at: isoUpdatedAt,
+        status: isOnline ? "online" : "offline"
+      };
+    });
 
     res.json({
       boxes
@@ -133,13 +162,38 @@ router.get("/activity", authenticateToken, (req, res) => {
       );
 
     res.json({
-      activities
+      activities: activities.map((a) => ({
+        ...a,
+        created_at: toUTCISO(a.created_at)
+      }))
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       error: "Failed to fetch activity"
+    });
+  }
+});
+
+// Clear all security activity logs for owner's boxes
+router.delete("/activity", authenticateToken, (req, res) => {
+  try {
+    db.prepare(`
+      DELETE FROM security_logs
+      WHERE box_id IN (
+        SELECT id FROM boxes WHERE owner_id = ?
+      )
+    `).run(req.user.userId);
+
+    res.json({
+      success: true,
+      message: "Security activity logs cleared"
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Failed to clear security activity logs"
     });
   }
 });
@@ -165,13 +219,79 @@ router.get("/deliveries", authenticateToken, (req, res) => {
       .all(req.user.userId);
 
     res.json({
-      deliveries
+      deliveries: deliveries.map((d) => ({
+        ...d,
+        created_at: toUTCISO(d.created_at)
+      }))
     });
   } catch (error) {
     console.error(error);
 
     res.status(500).json({
       error: "Failed to fetch delivery history"
+    });
+  }
+});
+
+// Delete a single delivery record
+router.delete("/deliveries/:id", authenticateToken, (req, res) => {
+  try {
+    const deliveryId = Number(req.params.id);
+
+    if (!Number.isInteger(deliveryId)) {
+      return res.status(400).json({
+        error: "Invalid delivery ID"
+      });
+    }
+
+    const delivery = db
+      .prepare(`
+        SELECT deliveries.id
+        FROM deliveries
+        INNER JOIN boxes
+          ON deliveries.box_id = boxes.id
+        WHERE deliveries.id = ? AND boxes.owner_id = ?
+      `)
+      .get(deliveryId, req.user.userId);
+
+    if (!delivery) {
+      return res.status(404).json({
+        error: "Delivery record not found"
+      });
+    }
+
+    db.prepare("DELETE FROM deliveries WHERE id = ?").run(deliveryId);
+
+    res.json({
+      success: true,
+      message: "Delivery deleted successfully"
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Failed to delete delivery"
+    });
+  }
+});
+
+// Clear all delivery history for owner's boxes
+router.delete("/deliveries", authenticateToken, (req, res) => {
+  try {
+    db.prepare(`
+      DELETE FROM deliveries
+      WHERE box_id IN (
+        SELECT id FROM boxes WHERE owner_id = ?
+      )
+    `).run(req.user.userId);
+
+    res.json({
+      success: true,
+      message: "All delivery history cleared successfully"
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Failed to clear delivery history"
     });
   }
 });
@@ -196,6 +316,9 @@ router.get("/:id", authenticateToken, (req, res) => {
           door_status,
           lock_status,
           parcel_status,
+          distance_cm,
+          wifi_rssi,
+          camera_url,
           created_at,
           updated_at
         FROM boxes
@@ -208,6 +331,14 @@ router.get("/:id", authenticateToken, (req, res) => {
         error: "Parcel box not found"
       });
     }
+
+    const isoUpdatedAt = toUTCISO(box.updated_at);
+    const isoCreatedAt = toUTCISO(box.created_at);
+    const updatedAtMs = isoUpdatedAt ? new Date(isoUpdatedAt).getTime() : 0;
+    const isOnline = (Date.now() - updatedAtMs) < 25000;
+    box.status = isOnline ? "online" : "offline";
+    box.updated_at = isoUpdatedAt;
+    box.created_at = isoCreatedAt;
 
     res.json({
       box
@@ -264,6 +395,30 @@ router.post("/:id/unlock", authenticateToken, (req, res) => {
 
     res.status(500).json({
       error: "Failed to issue remote unlock command"
+    });
+  }
+});
+
+// Update box camera URL
+router.put("/:id/camera", authenticateToken, (req, res) => {
+  try {
+    const boxId = Number(req.params.id);
+    const { cameraUrl } = req.body;
+
+    db.prepare(`
+      UPDATE boxes
+      SET camera_url = ?
+      WHERE id = ? AND owner_id = ?
+    `).run(cameraUrl || null, boxId, req.user.userId);
+
+    res.json({
+      success: true,
+      cameraUrl
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      error: "Failed to update camera URL"
     });
   }
 });
