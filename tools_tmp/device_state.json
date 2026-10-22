@@ -1,0 +1,7 @@
+{
+  "doorStatus": "closed",
+  "lockStatus": "locked",
+  "parcelStatus": "empty",
+  "distanceCm": 45.2,
+  "wifiRssi": -58
+}

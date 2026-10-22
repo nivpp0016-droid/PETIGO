@@ -22,8 +22,8 @@
 // 1. Wi-Fi Configuration
 // (Matches main PETIGO Smart Box network)
 // ==========================================
-const char* WIFI_SSID     = "Ruhul jio";
-const char* WIFI_PASSWORD = "12345678";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // ==========================================
 // 2. AI-Thinker ESP32-CAM Pin Definitions

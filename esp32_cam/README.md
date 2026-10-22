@@ -20,8 +20,8 @@ This firmware turns your **AI-Thinker ESP32-CAM** (with **ESP32-CAM-MB** micro-U
 4. In **Tools -> Port**, select the COM port of your baseboard (e.g. `COM7`).
 5. Update your Wi-Fi credentials in `esp32_cam.ino`:
    ```cpp
-   const char* WIFI_SSID     = "Ruhul jio";
-   const char* WIFI_PASSWORD = "12345678";
+   const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+   const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
    ```
 6. Click **Upload** (arrow icon).
 7. Once finished, open **Tools -> Serial Monitor** at **`115200 baud`**.
